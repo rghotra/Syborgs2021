@@ -12,6 +12,7 @@ public class Main extends LinearOpMode {
         waitForStart();
 
         drivetrain.setTarget(1000);
+        drivetrain.startPID();
         while (opModeIsActive() && !drivetrain.atTarget(5)) {
             drivetrain.updatePID(0);
             drivetrain.powerAllMotors(drivetrain.get_PID_output());

@@ -18,7 +18,7 @@ public class Drivetrain {
 
     ElapsedTime etime;
     boolean update = false;
-    double last, current, target;
+    double last, current, target, sum;
 
     Drivetrain(HardwareMap hardwareMap) {
 
@@ -43,7 +43,7 @@ public class Drivetrain {
     }
 
     double get_PID_output() {
-        return 0;
+        return getProportional(current) + getIntegral(current) + getDerivative(current);
     }
 
     double getProportional(double current) {
@@ -51,7 +51,12 @@ public class Drivetrain {
     }
 
     double getIntegral(double current) {
+        sum += current;
+        return I * sum;
+    }
 
+    double getDerivative(double current) {
+        return D * (current - last);
     }
 
     void updatePID(double val) {
@@ -71,6 +76,7 @@ public class Drivetrain {
 
     void startPID() {
         etime.reset();
+        sum = 0;
     }
 
     void setTarget(double target) {
