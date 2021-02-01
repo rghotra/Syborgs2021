@@ -5,12 +5,17 @@ import com.qualcomm.robotcore.hardware.DcMotorSimple;
 import com.qualcomm.robotcore.hardware.HardwareMap;
 import com.qualcomm.robotcore.util.ElapsedTime;
 
+import org.firstinspires.ftc.robotcore.internal.stellaris.FlashLoaderProtocolException;
+
 import java.util.concurrent.TimeUnit;
 
 public class Drivetrain {
 
     DcMotor FL, FR, BL, BR;
     DcMotor[] motors;
+
+    PID left, right, middle;
+    PID[] pids;
 
     private static final double P = 0.01;
     private static final double I = 0.0;
@@ -22,9 +27,9 @@ public class Drivetrain {
 
     Drivetrain(HardwareMap hardwareMap) {
 
-        FL = hardwareMap.get(DcMotor.class, "front left");
-        FR = hardwareMap.get(DcMotor.class, "front right");
-        BL = hardwareMap.get(DcMotor.class, "back left");
+        FL = hardwareMap.get(DcMotor.class, "front left");      // left odo
+        FR = hardwareMap.get(DcMotor.class, "front right");     // right odo
+        BL = hardwareMap.get(DcMotor.class, "back left");       // mid odo
         BR = hardwareMap.get(DcMotor.class, "back right");
 
         this.motors = new DcMotor[]{FL, FR, BL, BR};
@@ -39,57 +44,67 @@ public class Drivetrain {
             }
         }
 
+        left = new PID(0.0001, 0, 0, 10);
+        right = new PID(0.0001, 0, 0, 10);
+        middle = new PID(0.0001, 0, 0, 10);
+
+        pids = new PID[]{left, right, middle};
+
         etime = new ElapsedTime();
     }
 
-    double get_PID_output() {
-        return getProportional(current) + getIntegral(current) + getDerivative(current);
+    double[] getPIDoutputs() {
+        double[] out = new double[3];
+        for (int i = 0; i < pids.length; i++) {
+            out[i] = pids[i].get_PID_output();
+        }
+        return out;
     }
 
-    double getProportional(double current) {
-        return P * (target - current);
+    void updatePIDs() {
+        left.updatePID(FL.getCurrentPosition());
+        right.updatePID(FR.getCurrentPosition());
+        middle.updatePID(BL.getCurrentPosition());
     }
 
-    double getIntegral(double current) {
-        sum += current;
-        return I * sum;
-    }
-
-    double getDerivative(double current) {
-        return D * (current - last);
-    }
-
-    void updatePID(double val) {
-        double time = etime.time(TimeUnit.MILLISECONDS) % 100;
-        if ((10 < time || time > 90) && !update) {
-            last = current;
-            current = val;
-            update = true;
-        } else if (10 < time && time < 90) {
-            update = false;
+    void startPIDs(int... pids) {
+        for (int i : pids) {
+            this.pids[i].startPID();
         }
     }
 
+    void stopPIDs() {
+        for (PID pid : pids) {
+            pid.stopPID();
+        }
+    }
+
+    void setForwardTarget(double target) {
+        left.setTarget(target);
+        right.setTarget(target);
+    }
+
     boolean atTarget(double MOE) {
-        return target - MOE < current && current < target + MOE;
-    }
-
-    void startPID() {
-        etime.reset();
-        sum = 0;
-    }
-
-    void setTarget(double target) {
-        this.target = target;
+        for (PID pid : pids) {
+            if (!pid.atTarget(MOE))
+                return false;
+        }
+        return true;
     }
 
     void stopAllMotors() {
         powerAllMotors(0);
     }
 
+    void powerMotors(double... power) {
+        for (int i = 0; i < motors.length; i++) {
+            powerMotor(motors[i], power[i]);
+        }
+    }
+
     void powerAllMotors(double power) {
-        for (DcMotor motor : motors) {
-            powerMotor(motor, power);
+        for (int i = 0; i < motors.length; i++) {
+            powerMotor(motors[i], power);
         }
     }
 

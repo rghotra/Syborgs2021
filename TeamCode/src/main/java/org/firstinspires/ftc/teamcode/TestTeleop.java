@@ -1,9 +1,11 @@
 package org.firstinspires.ftc.teamcode;
 
 import com.qualcomm.robotcore.eventloop.opmode.LinearOpMode;
+import com.qualcomm.robotcore.eventloop.opmode.TeleOp;
 import com.qualcomm.robotcore.hardware.DcMotor;
 import com.qualcomm.robotcore.hardware.DcMotorSimple;
 
+@TeleOp(name="Test")
 public class TestTeleop extends LinearOpMode {
     @Override
     public void runOpMode() throws InterruptedException {
@@ -18,8 +20,8 @@ public class TestTeleop extends LinearOpMode {
         BL.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.BRAKE);
         BR.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.BRAKE);
 
-        FR.setDirection(DcMotorSimple.Direction.REVERSE);
-        BR.setDirection(DcMotorSimple.Direction.REVERSE);
+        FL.setDirection(DcMotorSimple.Direction.REVERSE);
+        BL.setDirection(DcMotorSimple.Direction.REVERSE);
 
         waitForStart();
 
@@ -29,10 +31,10 @@ public class TestTeleop extends LinearOpMode {
             double LT = gamepad1.left_trigger;
             double RT = gamepad1.right_trigger;
 
-            FL.setPower(LS + LT - RT);
-            FR.setPower(RS - LT + RT);
-            BL.setPower(LS - LT + RT);
-            BR.setPower(RS + LT - RT);
+            FL.setPower(LS - LT + RT);
+            FR.setPower(RS + LT - RT);
+            BL.setPower(LS + LT - RT);
+            BR.setPower(RS - LT + RT);
         }
 
     }

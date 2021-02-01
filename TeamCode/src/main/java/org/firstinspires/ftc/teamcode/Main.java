@@ -11,13 +11,15 @@ public class Main extends LinearOpMode {
 
         waitForStart();
 
-        drivetrain.setTarget(1000);
-        drivetrain.startPID();
+        drivetrain.setForwardTarget(500);
+        drivetrain.startPIDs(0, 1);
         while (opModeIsActive() && !drivetrain.atTarget(5)) {
-            drivetrain.updatePID(0);
-            drivetrain.powerAllMotors(drivetrain.get_PID_output());
+            drivetrain.updatePIDs();
+            double[] powers = drivetrain.getPIDoutputs();
+            drivetrain.powerMotors(powers[0], powers[1], powers[0], powers[1]);
         }
         drivetrain.stopAllMotors();
+        drivetrain.stopPIDs();
 
     }
 }
