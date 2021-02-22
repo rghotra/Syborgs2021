@@ -86,21 +86,23 @@ public class OdoTracking extends LinearOpMode {
             xc = mc; // change in horizontal odometry wheel
             yc = (lc + rc) / 2; // change in center of two vertical odometry wheels
 
-            xc = yc * Math.cos(angle) - xc * Math.sin(angle); // switch xc and yc if doesn't work
-            yc = yc * Math.sin(angle) + xc * Math.cos(angle);
+	        double ang = -angle;
+            xc = xc * Math.cos(ang) - yc * Math.sin(ang);
+            yc = xc * Math.sin(ang) + yc * Math.cos(ang);
             ac = (lc - rc) / TRACK; // change in angle
 
             // Update all variables
             x += xc;
             y += yc;
             angle += ac;
+            angle %= (2 * Math.PI);
 
             left = convert_to_meters(FL.getCurrentPosition());
             right = convert_to_meters(FR.getCurrentPosition());
             mid = convert_to_meters(BL.getCurrentPosition());
 
             // Update telemetry
-            telemetry.addData("Angle: ", angle);
+            telemetry.addData("Angle: ", angle * (180/Math.PI));
             telemetry.addData("X: ", x);
             telemetry.addData("Y: ", y);
             telemetry.addLine();
