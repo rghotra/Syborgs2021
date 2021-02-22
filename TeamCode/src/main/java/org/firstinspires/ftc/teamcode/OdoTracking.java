@@ -86,7 +86,7 @@ public class OdoTracking extends LinearOpMode {
             xc = mc; // change in horizontal odometry wheel
             yc = (lc + rc) / 2; // change in center of two vertical odometry wheels
 
-	        double ang = -angle;
+            double ang = -angle;
             xc = xc * Math.cos(ang) - yc * Math.sin(ang);
             yc = xc * Math.sin(ang) + yc * Math.cos(ang);
             ac = (lc - rc) / TRACK; // change in angle
