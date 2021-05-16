@@ -1,0 +1,453 @@
+package org.firstinspires.ftc.teamcode;
+
+import com.qualcomm.robotcore.eventloop.opmode.Autonomous;
+import com.qualcomm.robotcore.hardware.Servo;
+import com.qualcomm.robotcore.util.ElapsedTime;
+import com.qualcomm.robotcore.hardware.DcMotor;
+import com.qualcomm.robotcore.hardware.DcMotorSimple;
+import com.qualcomm.robotcore.eventloop.opmode.LinearOpMode;
+
+@Autonomous
+
+public class Auto extends LinearOpMode {
+    
+    private static final double TRACK = 13; // distance between vertical odometry wheels
+    private static final double RADIUS = 1.18; // radius of odometry wheels
+    private static final int COUNTS = 8192; // ticks per revolution of odometry encoders
+
+    private static final double ODOMETRY_CIRCUMFERENCE = 2 * Math.PI * RADIUS;
+    private static final double UNITS_PER_TICK = ODOMETRY_CIRCUMFERENCE / COUNTS;
+    
+    @Override
+    public void runOpMode() throws InterruptedException {
+
+        DcMotor FL = hardwareMap.get(DcMotor.class, "front left");      // left odo
+        DcMotor FR = hardwareMap.get(DcMotor.class, "front right");     // right odo
+        DcMotor BL = hardwareMap.get(DcMotor.class, "back left");
+        DcMotor BR = hardwareMap.get(DcMotor.class, "back right");      // mid odo
+
+        FL.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.FLOAT);
+        FR.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.FLOAT);
+        BL.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.FLOAT);
+        BR.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.FLOAT);
+        
+        FL.setMode(DcMotor.RunMode.STOP_AND_RESET_ENCODER);
+        FR.setMode(DcMotor.RunMode.STOP_AND_RESET_ENCODER);
+        BR.setMode(DcMotor.RunMode.STOP_AND_RESET_ENCODER);
+
+        FL.setMode(DcMotor.RunMode.RUN_WITHOUT_ENCODER);
+        FR.setMode(DcMotor.RunMode.RUN_WITHOUT_ENCODER);
+        BR.setMode(DcMotor.RunMode.RUN_WITHOUT_ENCODER);
+
+        FR.setDirection(DcMotorSimple.Direction.REVERSE);
+        BR.setDirection(DcMotorSimple.Direction.REVERSE);
+        
+        DcMotor launcher = hardwareMap.get(DcMotor.class, "launcher");
+        DcMotor intake = hardwareMap.get(DcMotor.class, "intake");
+        Servo feed = hardwareMap.get(Servo.class, "feed");
+
+        Servo claw = hardwareMap.get(Servo.class, "claw");
+        DcMotor arm = hardwareMap.get(DcMotor.class, "arm");
+
+        double power = 0.6;
+        claw.setPosition(0);
+
+        waitForStart();
+
+        double P = 0.00012;
+        double turningP = 0.0003;
+        double angle = 0;
+        double pAngle = 6.8;
+        
+        double targetLeft = 75000;
+        double targetRight = 75000;
+        double MOE = 600;
+        
+        boolean cont = true;
+        
+        ElapsedTime etime = new ElapsedTime();
+        
+        while ((cont || etime.time() < 0.5) && opModeIsActive()) {
+            
+            if (cont) {
+                etime.reset();
+            }
+            
+            cont = Math.abs(targetLeft + FL.getCurrentPosition()) > MOE
+                    || Math.abs(targetRight - FR.getCurrentPosition()) > MOE
+                    || Math.abs(angle * 180/Math.PI) > 0.4;
+            
+            angle = (-FL.getCurrentPosition() - FR.getCurrentPosition()) * UNITS_PER_TICK / TRACK;
+            
+            double leftError = targetLeft + FL.getCurrentPosition();
+            double rightError = targetRight - FR.getCurrentPosition();
+            
+            FL.setPower(cap(P * leftError, 0.6) + pAngle * -angle);
+            FR.setPower(cap(P * rightError, 0.6) + pAngle * angle);
+            BL.setPower(cap(P * leftError, 0.6) + pAngle * -angle);
+            BR.setPower(cap(P * rightError, 0.6) + pAngle * angle);
+            
+            telemetry.addData("Left: ", -FL.getCurrentPosition());
+            telemetry.addData("Right: ", FR.getCurrentPosition());
+            telemetry.addData("Middle: ", BR.getCurrentPosition());
+            telemetry.addData("Angle: ", -angle * 180/Math.PI);
+            telemetry.update();
+        }
+        FL.setPower(0);
+        FR.setPower(0);
+        BL.setPower(0);
+        BR.setPower(0);
+        
+        arm.setPower(0.4);
+        sleep(800);
+        arm.setPower(0);
+        
+        claw.setPosition(0.8);
+        sleep(800);
+        
+        arm.setPower(-0.6);
+        sleep(1000);
+        arm.setPower(0);
+        
+        launcher.setPower(-power);
+        
+        // TURN
+        double targetAngle = 1./14.5;
+        targetLeft = targetLeft + targetAngle * (2 * Math.PI * 13) * 8192/(2 * Math.PI * 1.18) * -0.5;
+        targetRight = targetLeft + targetAngle * (2 * Math.PI * 13) * 8192/(2 * Math.PI * 1.18) * 0.5;
+        MOE = 600;
+        
+        cont = true;
+        
+        etime.reset();
+        
+        while ((cont || etime.time() < 0.5) && opModeIsActive()) {
+            
+            if (cont) {
+                etime.reset();
+            }
+            
+            cont = Math.abs(targetLeft + FL.getCurrentPosition()) > MOE
+                    || Math.abs(targetRight - FR.getCurrentPosition()) > MOE;
+            
+            angle = (-FL.getCurrentPosition() - FR.getCurrentPosition()) * UNITS_PER_TICK / TRACK;
+            
+            double leftError = targetLeft + FL.getCurrentPosition();
+            double rightError = targetRight - FR.getCurrentPosition();
+            
+            FL.setPower(cap(turningP * leftError, 0.5));
+            FR.setPower(cap(turningP * rightError, 0.5));
+            BL.setPower(cap(turningP * leftError, 0.5));
+            BR.setPower(cap(turningP * rightError, 0.5));
+            
+            telemetry.addData("Left: ", -FL.getCurrentPosition());
+            telemetry.addData("Right: ", FR.getCurrentPosition());
+            telemetry.addData("Middle: ", BR.getCurrentPosition());
+            telemetry.addData("Angle: ", -angle * 180/Math.PI);
+            telemetry.update();
+        }
+        FL.setPower(0);
+        FR.setPower(0);
+        BL.setPower(0);
+        BR.setPower(0);
+        
+        sleep(2000);
+        
+        feed.setPosition(0);
+        sleep(2400);
+        intake.setPower(0.6);
+        sleep(1000);
+        intake.setPower(0);
+        sleep(1500);
+        intake.setPower(0.3);
+        sleep(2200);
+        
+        launcher.setPower(0);
+        feed.setPosition(0.5);
+        intake.setPower(0);
+        
+        
+        targetAngle = 1/35.;
+        targetLeft = targetLeft + targetAngle * (2 * Math.PI * 13) * 8192/(2 * Math.PI * 1.18) * -0.5;
+        targetRight = targetLeft + targetAngle * (2 * Math.PI * 13) * 8192/(2 * Math.PI * 1.18) * 0.5;
+        MOE = 600;
+        
+        cont = true;
+        
+        etime.reset();
+        
+        while ((cont || etime.time() < 0.5) && opModeIsActive()) {
+            
+            if (cont) {
+                etime.reset();
+            }
+            
+            cont = Math.abs(targetLeft + FL.getCurrentPosition()) > MOE
+                    || Math.abs(targetRight - FR.getCurrentPosition()) > MOE;
+            
+            angle = (-FL.getCurrentPosition() - FR.getCurrentPosition()) * UNITS_PER_TICK / TRACK;
+            
+            double leftError = targetLeft + FL.getCurrentPosition();
+            double rightError = targetRight - FR.getCurrentPosition();
+            
+            FL.setPower(cap(turningP * leftError, 0.5));
+            FR.setPower(cap(turningP * rightError, 0.5));
+            BL.setPower(cap(turningP * leftError, 0.5));
+            BR.setPower(cap(turningP * rightError, 0.5));
+            
+            telemetry.addData("Left: ", -FL.getCurrentPosition());
+            telemetry.addData("Right: ", FR.getCurrentPosition());
+            telemetry.addData("Middle: ", BR.getCurrentPosition());
+            telemetry.addData("Angle: ", -angle * 180/Math.PI);
+            telemetry.update();
+        }
+        FL.setPower(0);
+        FR.setPower(0);
+        BL.setPower(0);
+        BR.setPower(0);
+        
+        // going back
+        targetLeft = 5000;
+        targetRight = 5000;
+        targetAngle =  targetAngle * 2*Math.PI;
+        MOE = 600;
+        
+        cont = true;
+        
+        etime.reset();
+        while ((cont || etime.time() < 0.5) && opModeIsActive()) {
+            
+            if (cont) {
+                etime.reset();
+            }
+            
+            cont = Math.abs(targetLeft + FL.getCurrentPosition()) > MOE
+                    || Math.abs(targetRight - FR.getCurrentPosition()) > MOE;
+            
+            angle = (-FL.getCurrentPosition() - FR.getCurrentPosition()) * UNITS_PER_TICK / TRACK;
+            
+            double leftError = targetLeft + FL.getCurrentPosition();
+            double rightError = targetRight - FR.getCurrentPosition();
+            
+            FL.setPower(cap(P * leftError, 0.6) + pAngle * -angle);
+            FR.setPower(cap(P * rightError, 0.6) + pAngle * angle);
+            BL.setPower(cap(P * leftError, 0.6) + pAngle * -angle);
+            BR.setPower(cap(P * rightError, 0.6) + pAngle * angle);
+            
+            telemetry.addData("Left: ", -FL.getCurrentPosition());
+            telemetry.addData("Right: ", FR.getCurrentPosition());
+            telemetry.addData("Middle: ", BR.getCurrentPosition());
+            telemetry.addData("Angle: ", -angle * 180/Math.PI);
+            telemetry.update();
+        }
+        FL.setPower(0);
+        FR.setPower(0);
+        BL.setPower(0);
+        BR.setPower(0);
+        
+        // pick up
+        arm.setPower(0.2);
+        sleep(800);
+        arm.setPower(0);
+        
+        claw.setPosition(0);
+        sleep(1000);
+        
+        arm.setPower(-0.6);
+        sleep(850);
+        arm.setPower(0);
+        
+        // second wobble
+        targetLeft = 84000;
+        targetRight = 83000;
+        targetAngle =  targetAngle * 2*Math.PI;
+        MOE = 600;
+        
+        cont = true;
+        
+        etime.reset();
+        while ((cont || etime.time() < 0.5) && opModeIsActive()) {
+            
+            if (cont) {
+                etime.reset();
+            }
+            
+            cont = Math.abs(targetLeft + FL.getCurrentPosition()) > MOE
+                    || Math.abs(targetRight - FR.getCurrentPosition()) > MOE;
+            
+            angle = (-FL.getCurrentPosition() - FR.getCurrentPosition()) * UNITS_PER_TICK / TRACK;
+            
+            double leftError = targetLeft + FL.getCurrentPosition();
+            double rightError = targetRight - FR.getCurrentPosition();
+            
+            FL.setPower(cap(P * leftError, 0.6) + pAngle * -angle);
+            FR.setPower(cap(P * rightError, 0.6) + pAngle * angle);
+            BL.setPower(cap(P * leftError, 0.6) + pAngle * -angle);
+            BR.setPower(cap(P * rightError, 0.6) + pAngle * angle);
+            
+            telemetry.addData("Left: ", -FL.getCurrentPosition());
+            telemetry.addData("Right: ", FR.getCurrentPosition());
+            telemetry.addData("Middle: ", BR.getCurrentPosition());
+            telemetry.addData("Angle: ", -angle * 180/Math.PI);
+            telemetry.update();
+        }
+        FL.setPower(0);
+        FR.setPower(0);
+        BL.setPower(0);
+        BR.setPower(0);
+        
+        arm.setPower(0.5);
+        sleep(1000);
+        arm.setPower(0);
+        
+        claw.setPosition(0.8);
+        sleep(800);
+        
+        arm.setPower(-0.6);
+        sleep(1000);
+        arm.setPower(0);
+        
+        /*
+        // WOBBLE
+        
+        targetLeft = targetLeft + 66000;
+        targetRight = targetRight + 66000;
+        targetAngle =  targetAngle * 2*Math.PI;
+        MOE = 600;
+        
+        cont = true;
+        
+        etime.reset();
+        while ((cont || etime.time() < 0.5) && opModeIsActive()) {
+            
+            if (cont) {
+                etime.reset();
+            }
+            
+            cont = Math.abs(targetLeft + FL.getCurrentPosition()) > MOE
+                    || Math.abs(targetRight - FR.getCurrentPosition()) > MOE;
+            
+            angle = (-FL.getCurrentPosition() - FR.getCurrentPosition()) * UNITS_PER_TICK / TRACK;
+            
+            double leftError = targetLeft + FL.getCurrentPosition();
+            double rightError = targetRight - FR.getCurrentPosition();
+            
+            FL.setPower(cap(P * leftError, 0.6));
+            FR.setPower(cap(P * rightError, 0.6));
+            BL.setPower(cap(P * leftError, 0.6));
+            BR.setPower(cap(P * rightError, 0.6));
+            
+            telemetry.addData("Left: ", -FL.getCurrentPosition());
+            telemetry.addData("Right: ", FR.getCurrentPosition());
+            telemetry.addData("Middle: ", BR.getCurrentPosition());
+            telemetry.addData("Angle: ", -angle * 180/Math.PI);
+            telemetry.update();
+        }
+        FL.setPower(0);
+        FR.setPower(0);
+        BL.setPower(0);
+        BR.setPower(0);
+        
+        
+        // turn
+        targetAngle = 1./1.1;
+        targetLeft = targetLeft + targetAngle * (2 * Math.PI * 13) * 8192/(2 * Math.PI * 1.18) * -0.5;
+        targetRight = targetLeft + targetAngle * (2 * Math.PI * 13) * 8192/(2 * Math.PI * 1.18) * 0.5;
+        MOE = 600;
+        
+        cont = true;
+        
+        etime.reset();
+        
+        while ((cont || etime.time() < 0.5) && opModeIsActive()) {
+            
+            if (cont) {
+                etime.reset();
+            }
+            
+            cont = Math.abs(targetLeft + FL.getCurrentPosition()) > MOE
+                    || Math.abs(targetRight - FR.getCurrentPosition()) > MOE;
+            
+            angle = (-FL.getCurrentPosition() - FR.getCurrentPosition()) * UNITS_PER_TICK / TRACK;
+            
+            double leftError = targetLeft + FL.getCurrentPosition();
+            double rightError = targetRight - FR.getCurrentPosition();
+            
+            FL.setPower(cap(turningP * leftError, 0.4));
+            FR.setPower(cap(turningP * rightError, 0.4));
+            BL.setPower(cap(turningP * leftError, 0.4));
+            BR.setPower(cap(turningP * rightError, 0.4));
+            
+            telemetry.addData("Left: ", -FL.getCurrentPosition());
+            telemetry.addData("Right: ", FR.getCurrentPosition());
+            telemetry.addData("Middle: ", BR.getCurrentPosition());
+            telemetry.addData("Angle: ", -angle * 180/Math.PI);
+            telemetry.update();
+        }
+        FL.setPower(0);
+        FR.setPower(0);
+        BL.setPower(0);
+        BR.setPower(0);
+        
+        arm.setPower(0.4);
+        sleep(800);
+        arm.setPower(0);
+        
+        claw.setPosition(0.8);
+        sleep(800);
+        
+        arm.setPower(-0.6);
+        sleep(1000);
+        arm.setPower(0);
+        
+        // park
+        targetLeft = targetLeft + 45000;
+        targetRight = targetRight + 45000;
+        targetAngle =  targetAngle * 2*Math.PI;
+        MOE = 600;
+        
+        cont = true;
+        
+        etime.reset();
+        while ((cont || etime.time() < 0.5) && opModeIsActive()) {
+            
+            if (cont) {
+                etime.reset();
+            }
+            
+            cont = Math.abs(targetLeft + FL.getCurrentPosition()) > MOE
+                    || Math.abs(targetRight - FR.getCurrentPosition()) > MOE;
+            
+            angle = (-FL.getCurrentPosition() - FR.getCurrentPosition()) * UNITS_PER_TICK / TRACK;
+            
+            double leftError = targetLeft + FL.getCurrentPosition();
+            double rightError = targetRight - FR.getCurrentPosition();
+            
+            FL.setPower(cap(P * leftError, 0.6));
+            FR.setPower(cap(P * rightError, 0.6));
+            BL.setPower(cap(P * leftError, 0.6));
+            BR.setPower(cap(P * rightError, 0.6));
+            
+            telemetry.addData("Left: ", -FL.getCurrentPosition());
+            telemetry.addData("Right: ", FR.getCurrentPosition());
+            telemetry.addData("Middle: ", BR.getCurrentPosition());
+            telemetry.addData("Angle: ", -angle * 180/Math.PI);
+            telemetry.update();
+        }
+        FL.setPower(0);
+        FR.setPower(0);
+        BL.setPower(0);
+        BR.setPower(0);
+        */
+    }
+    
+    double cap(double a, double b) {
+        if (a > b)
+            return b;
+        else if (a < -b)
+            return -b;
+        else
+            return a;
+    }
+
+}
